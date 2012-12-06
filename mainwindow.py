@@ -1,4 +1,3 @@
-import pyximport; pyximport.install()
 from PySide.QtGui import *
 from PySide.QtCore import *
 from bsddb3.db import DB
@@ -37,7 +36,7 @@ class MainWindow(QMainWindow):
             if(r == None):
                 break;
             else:
-                s += LogRecord.from_binary(r[1]).as_map().__str__() + '\n';
+                s += LogRecord.from_binary(r[1]).to_keplerian().__str__() + '\n';
 
         self.textEdit.setText(s)
         
