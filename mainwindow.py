@@ -29,15 +29,15 @@ class MainWindow(QMainWindow):
         s = ""
         d = DB()
         d.open(fileName)
-        
+
         c = d.cursor()
         for i in range(1,200):
             r = c.next()
             if(r == None):
                 break;
             else:
-                s += LogRecord.from_binary(r[1]).to_keplerian().__str__() + '\n';
+                s += LogRecord.from_binary(r[1]).bodies_in_keplerian().__str__() + '\n';
 
         self.textEdit.setText(s)
-        
-    
+
+
