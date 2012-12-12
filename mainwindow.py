@@ -2,7 +2,7 @@ from PySide.QtGui import *
 from PySide.QtCore import *
 from bsddb3.db import DB
 from log import LogRecord
-
+from plot import *
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -21,23 +21,15 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.textEdit)
 
     def openFile(self):
-        fileName, filtr = QFileDialog.getOpenFileName(self, filter="Database files(*.db)")
+        fileName, filtr = QFileDialog.getOpenFileName(self,
+             filter="Database files(*.db)")
         if fileName:
             self.loadFile(fileName)
 
     def loadFile(self,fileName):
-        s = ""
-        d = DB()
-        d.open(fileName)
+        plot_a_file(fileName)
+#                s += LogRecord.from_binary(r[1]).bodies_in_keplerian().__str__() + '\n';
 
-        c = d.cursor()
-        for i in range(1,200):
-            r = c.next()
-            if(r == None):
-                break;
-            else:
-                s += LogRecord.from_binary(r[1]).bodies_in_keplerian().__str__() + '\n';
-
-        self.textEdit.setText(s)
+#        self.textEdit.setText(s)
 
 

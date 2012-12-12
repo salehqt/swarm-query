@@ -34,7 +34,8 @@ class LogRecord:
         else:
             return None
     def as_map(self):
-        return {'time':self.time, 'sys':self.sys, 'flags':self.flags, 'bodies':self.bodies }
+        return {'time':self.time, 'sys':self.sys,
+        'flags':self.flags, 'bodies':self.bodies }
 
     def __repr__(self):
         return self.as_map().__repr__();
