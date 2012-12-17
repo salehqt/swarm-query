@@ -1,4 +1,4 @@
-from bsddb3.db import DB
+from bsddb3.db import *
 from log import LogRecord
 from struct import pack, unpack
 
@@ -35,17 +35,17 @@ def compare_time(l, r):
 class IndexedLogDB:
     def __init__(self, baseName):
         p = DB()
-        p.open(baseName + ".p.db")
+        p.open(baseName + ".p.db", flags=DB_RDONLY)
 
         si = DB()
-        si.open(baseName + ".sys.db")
+        si.open(baseName + ".sys.db", flags=DB_RDONLY)
 
         ti = DB()
         ti.set_bt_compare(compare_time)
-        ti.open(baseName + ".time.db")
+        ti.open(baseName + ".time.db", flags=DB_RDONLY)
 
         ei = DB()
-        ei.open(baseName + ".evt.db")
+        ei.open(baseName + ".evt.db", flags=DB_RDONLY)
 
         p.associate(si, extract_sys  )
         p.associate(ti, extract_time )

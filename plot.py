@@ -1,6 +1,6 @@
 # -*- coding: utf-8 *-*
 from logdb import IndexedLogDB
-from bsddb3.db import DB
+from bsddb3.db import *
 from log import LogRecord
 from numpy import *
 import matplotlib.pyplot as P
