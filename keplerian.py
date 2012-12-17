@@ -270,8 +270,8 @@ def calc_keplerian_for_cartesian(cartesian,GM):
         e = 1.
         ww = acos(2.*a/r-1.)
         if(vx*x+vy*y+vz*z<0.):
-            w = 2.*M_PI-w
-        tmpf = tan(0.5*w)
+            ww = 2.*M_PI-ww
+        tmpf = tan(0.5*ww)
         M = tmpf*(1.+tmpf*tmpf/3.)
         w = u-ww
         if(w<0.):
