@@ -2,17 +2,47 @@ from bsddb3.db import *
 from log import LogRecord
 from struct import pack, unpack
 
+
+class PKey:
+    def __init__(self, t, s, e , r):
+        self.time = t
+        self.system_id = s
+        self.event_id = e
+        self.recno = r
+
+    @staticmethod
+    def decomposeBinary(s):
+        if(len(s) == 24):
+            return unpack('diiq',s)
+        else:
+            return None
+
+    @staticmethod
+    def fromBinary(s):
+        (t,s,e,r) = PKey.decomposeBinary(s)
+        return PKey(t,s,e,r)
+
+    @staticmethod
+    def compareBinary(s1,s2):
+        d1 = PKey.decomposeBinary(s1)
+        d2 = PKey.decomposeBinary(s2)
+        if(d1 == d2):
+            return 0
+        elif (d1 < d2):
+            return -1
+        else:
+            return 1
+
+
+
 def extract_sys(key, data):
-    (msgid, length,time,sys) = unpack('iidi',s[0:20])
-    return sys
+    return PKey.fromBinary(key).system_id 
 
 def extract_time(key, data):
-    (msgid, length,time,sys) = unpack('iidi',s[0:20])
-    return time
+    return PKey.fromBinary(key).time
 
 def extract_evt(key, data):
-    (msgid, length,time,sys) = unpack('iidi',s[0:20])
-    return msgid
+    return PKey.fromBinary(key).event_id
 
 def compare_time(l, r):
     if(len(l) < len(r)):
@@ -35,6 +65,7 @@ def compare_time(l, r):
 class IndexedLogDB:
     def __init__(self, baseName):
         p = DB()
+        p.set_bt_compare(PKey.compareBinary)
         p.open(baseName + ".p.db", flags=DB_RDONLY)
 
         si = DB()
