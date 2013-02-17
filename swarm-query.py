@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 *-*
-from logdb import IndexedLogDB
+from logdb import IndexedLogDB, PKey
 from bsddb3.db import *
 from log import LogRecord
 from struct import pack, unpack
@@ -37,15 +37,33 @@ print args
 ## Do the query ####
 #    dump_a_file(argv[1], int(argv[2]), int(argv[3]))
 
-d = IndexedLogDB(args.database)
+from functools import partial
 
-c = d.Cursor(d.primary.cursor())
-
-for i in range(0,args.max_records):
-    l = c.next()
-    if(l == None):
-        break;
-    else:
+TABLE, KEYS, KEPLERIAN = range(3)
+def print_record(print_mode, r):
+    k, l = r
+    if print_mode == TABLE :
         i = 0
         for b in l.bodies:
             print "%10d %lg  %6d %6d  %9.2g  %10.4g %10.4g %10.4g  %10.5lg %10.5lg %10.5lg  %d" % (l.msgid, l.time, l.sys, i, b.mass, b.position[0], b.position[1], b.position[2], b.velocity[0], b.velocity[1], b.velocity[2], l.flags)
+            i = i + 1
+    elif print_mode == KEYS :
+        print k
+
+
+
+
+d = IndexedLogDB(args.database)
+
+# default for time_range : (float('-inf'),float('+inf'))
+# default for system_range : (0, sys.maxint)
+
+#q = d.time_sys_range_query(args.time_range,args.system_range)
+
+for t in d.time_sequence(args.time_range):
+    print "Time: ", t
+    for k,l in d.system_range_query_at_time(t,args.system_range):
+        print_record(TABLE, (k,l))
+    print "\n"
+
+

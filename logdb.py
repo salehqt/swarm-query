@@ -1,7 +1,9 @@
 from bsddb3.db import *
 from log import LogRecord
 from struct import pack, unpack
+import sys
 
+TIME_EPSILON = sys.float_info.epsilon
 
 class PKey:
     def __init__(self, t, s, e , r):
@@ -32,6 +34,14 @@ class PKey:
             return -1
         else:
             return 1
+
+    def __repr__(self):
+       m = {'time':self.time, 'sys': self.system_id, 'evt': self.event_id, 'rec#': self.recno }
+       return m.__repr__();
+
+    def toBinary(self):
+        return pack('diiq', self.time, self.system_id, self.event_id, self.recno )
+
 
 
 
@@ -93,10 +103,49 @@ class IndexedLogDB:
         c.set_range(k)
         return self.Cursor(c)
 
+
+    def time_sequence(self, time_range):
+        """Returns a list of times for a time range, it is used for making 
+        range queries"""
+
+        t0, t1 = time_range
+        c = self.time_idx.cursor()
+        k = pack('d', t0)
+        c.set_range(k)
+        while True:
+            k ,p, l= c.pget(DB_CURRENT)
+            t, = unpack('d', k)
+            if t <= t1 :
+                yield t
+                c.next_nodup()
+            else:
+                raise StopIteration
+
     def at_sys(self,sys):
         c = self.system_idx.cursor()
         c.set_range(sys)
         return self.Cursor(sys)
+
+
+    @staticmethod
+    def decodeKVP(r):
+        return (PKey.fromBinary(r[0]),LogRecord.from_binary(r[1]))
+
+    def system_range_query_at_time(self,t,system_range):
+        c = self.primary.cursor()
+        s0, s1 = system_range
+
+        k = PKey(t, s0, 0, 0)
+        c.set_range(k.toBinary())
+
+        while True:
+            k,l = IndexedLogDB.decodeKVP(c.current())
+            if k.system_id <= s1 :
+                yield (k,l)
+                c.next()
+            else:
+                raise StopIteration
+
 
     class Cursor:
         def __init__(self, dbc):
