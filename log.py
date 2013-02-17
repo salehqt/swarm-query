@@ -18,8 +18,9 @@ class LogRecord:
     @staticmethod
     def from_binary(s):
         (msgid, length) = unpack('ii',s[0:8]) # msgid, len
+        l = LogRecord()
+        l.msgid = msgid
         if msgid == 1 :
-            l = LogRecord()
             (time,sys,flags,nbod) = unpack('diii',s[8:28])
             bodies = []
             for b in range(1,nbod+1):
