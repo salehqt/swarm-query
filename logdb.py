@@ -97,12 +97,12 @@ class IndexedLogDB:
         self.time_idx = ti
         self.event_idx = ei
 
-    def at_time(self, time):
-        c = self.time_idx.cursor()
-        k = pack('d', time)
-        c.set_range(k)
-        return self.Cursor(c)
 
+    def all_records(self):
+        c = self.primary.cursor()
+        while True:
+            k,l = c.next()
+            yield IndexedLogDB.decodeKVP((k,l))
 
     def time_sequence(self, time_range):
         """Returns a list of times for a time range, it is used for making 
@@ -121,10 +121,36 @@ class IndexedLogDB:
             else:
                 raise StopIteration
 
-    def at_sys(self,sys):
+    def system_range_records(self, sys_range):
+        """Return all the records that have system id in the system range"""
+        s0, s1 = sys_range
         c = self.system_idx.cursor()
-        c.set_range(sys)
-        return self.Cursor(sys)
+        k = pack('i', s0)
+        c.set_range(k)
+        c.prev()
+        while True:
+            k, p, l = c.pget(DB_NEXT)
+            s, = unpack('i', k)
+            if s <= s1 :
+                yield IndexedLogDB.decodeKVP((p,l))
+            else:
+                raise StopIteration
+
+    def time_range_records(self, time_range):
+        """Return all the records that have time in the time range"""
+        t0, t1 = time_range
+        c = self.time_idx.cursor()
+        k = pack('d', t0)
+        c.set_range(k)
+        c.prev()
+        while True:
+            k ,p, l= c.pget(DB_NEXT)
+            t, = unpack('d', k)
+            if t <= t1 :
+                yield IndexedLogDB.decodeKVP((p,l))
+            else:
+                raise StopIteration
+
 
 
     @staticmethod
@@ -147,16 +173,6 @@ class IndexedLogDB:
                 raise StopIteration
 
 
-    class Cursor:
-        def __init__(self, dbc):
-            self.dbc = dbc
-
-        def next(self):
-            r = self.dbc.next()
-            if( r == None ):
-                return None
-            else:
-                return LogRecord.from_binary(r[1])
 
 
 

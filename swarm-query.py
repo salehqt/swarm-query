@@ -45,26 +45,34 @@ def print_record(print_mode, r, body_range):
 args = parse_cmd()
 d = IndexedLogDB(args.database)
 
-# default for time_range : (float('-inf'),float('+inf'))
-# default for system_range : (0, sys.maxint)
-
-#q = d.time_sys_range_query(args.time_range,args.system_range)
-
-output_count = 0
-
-def makeQuery(tr, sr, er):
+def makeQuery(tr, sr):
     if(tr.isUniversal()):
-       raise NotImplementedError() 
+        if(sr.isUniversal()):
+            for k,l in d.all_records():
+                yield (k,l)
+        else:
+            for k,l in d.system_range_records(sr.ulPair()):
+                yield (k,l)
     else:
         if(sr.isUniversal()):
-            raise NotImplementedError()
+            for k,l in d.time_range_records(tr.ulPair()):
+                yield (k,l)
         else:
             for t in d.time_sequence(tr.ulPair()):
                 for k,l in d.system_range_query_at_time(t,sr.ulPair()):
-                    if(er.contains(k.event_id)):
-                        yield (k,l)
+                    yield (k,l)
 
-q = makeQuery(args.time_range,args.system_range,args.evt_id)
+def filterEventID(q,er):
+    for k,l in q:
+        if(er.contains(k.event_id)):
+            yield (k,l)
+
+q0 = makeQuery(args.time_range,args.system_range)
+
+if(not args.evt_id.isUniversal()):
+    q = filterEventID(q0,args.evt_id)
+else:
+    q = q0
 
 try:
     for i in range(0,args.max_records):
