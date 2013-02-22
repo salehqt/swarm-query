@@ -139,13 +139,8 @@ class IndexedLogDB:
 
     def all_records(self):
         c = self.primary.cursor()
-        while True:
-            n = c.next()
-            if n != None :
-                k,l = n
-                yield IndexedLogDB.decodeKVP((k,l))
-            else:
-                raise StopIteration
+        for k,l in iter_cursor(c):
+            yield IndexedLogDB.decodeKVP((k,l))
 
     def time_sequence(self, time_range):
         """Returns a list of times for a time range, it is used for making 
@@ -156,15 +151,10 @@ class IndexedLogDB:
         k = pack('d', t0)
         c.set_range(k)
         c.prev();
-        while True:
-            n = c.pget(DB_NEXT_NODUP)
-            if n != None :
-                k ,p, l = n 
-                t, = unpack('d', k)
-                if t <= t1 :
-                    yield t
-                else:
-                    raise StopIteration
+        for k, p, l in iter_secondary_cursor(c, DB_NEXT_NODUP):
+            t, = unpack('d', k)
+            if t <= t1 :
+                yield t
             else:
                 raise StopIteration
 
@@ -175,15 +165,10 @@ class IndexedLogDB:
         k = pack('i', s0)
         c.set_range(k)
         c.prev()
-        while True:
-            n = c.pget(DB_NEXT)
-            if n != None :
-                k, p, l = n
-                s, = unpack('i', k)
-                if s <= s1 :
-                    yield IndexedLogDB.decodeKVP((p,l))
-                else:
-                    raise StopIteration
+        for k, p, l in iter_secondary_cursor(c):
+            s, = unpack('i', k)
+            if s <= s1 :
+                yield IndexedLogDB.decodeKVP((p,l))
             else:
                 raise StopIteration
 
@@ -194,17 +179,10 @@ class IndexedLogDB:
         k = pack('d', t0)
         c.set_range(k)
         c.prev()
-        # TODO: Factor out this iteration into another
-        # generator function
-        while True:
-            n = c.pget(DB_NEXT)
-            if n != None :
-                k ,p, l = n
-                t, = unpack('d', k)
-                if t <= t1 :
-                    yield IndexedLogDB.decodeKVP((p,l))
-                else:
-                    raise StopIteration
+        for k, p, l in iter_secondary_cursor(c):
+            t, = unpack('d', k)
+            if t <= t1 :
+                yield IndexedLogDB.decodeKVP((p,l))
             else:
                 raise StopIteration
 
