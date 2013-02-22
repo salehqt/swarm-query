@@ -72,6 +72,40 @@ def compare_time(l, r):
         return 0
 
 
+def compare_int(l, r):
+    if(len(l) < len(r)):
+        return -1
+    if(len(l) > len(r)):
+        return 1
+    elif(len(l) != 4):
+        return 0
+
+    lf = unpack('i', l)
+    rf = unpack('i', r)
+    if( lf < rf ):
+        return -1
+    if( lf > rf ):
+        return 1
+    else:
+        return 0
+
+
+def iter_cursor(c, mode = DB_NEXT):
+    while True:
+        n = c.get(mode)
+        if n != None :
+            yield n
+        else:
+            raise StopIteration
+
+def iter_secondary_cursor(c, mode = DB_NEXT):
+    while True:
+        n = c.pget(mode)
+        if n != None :
+            yield n
+        else:
+            raise StopIteration
+
 class IndexedLogDB:
     def __init__(self, baseName):
         p = DB()
@@ -79,13 +113,18 @@ class IndexedLogDB:
         p.open(baseName + ".p.db", flags=DB_RDONLY)
 
         si = DB()
+        si.set_bt_compare(compare_int)
+        si.set_dup_compare(PKey.compareBinary)
         si.open(baseName + ".sys.db", flags=DB_RDONLY)
 
         ti = DB()
         ti.set_bt_compare(compare_time)
+        ti.set_dup_compare(PKey.compareBinary)
         ti.open(baseName + ".time.db", flags=DB_RDONLY)
 
         ei = DB()
+        ei.set_bt_compare(compare_int)
+        ei.set_dup_compare(PKey.compareBinary)
         ei.open(baseName + ".evt.db", flags=DB_RDONLY)
 
         p.associate(si, extract_sys  )
@@ -101,8 +140,12 @@ class IndexedLogDB:
     def all_records(self):
         c = self.primary.cursor()
         while True:
-            k,l = c.next()
-            yield IndexedLogDB.decodeKVP((k,l))
+            n = c.next()
+            if n != None :
+                k,l = n
+                yield IndexedLogDB.decodeKVP((k,l))
+            else:
+                raise StopIteration
 
     def time_sequence(self, time_range):
         """Returns a list of times for a time range, it is used for making 
@@ -112,12 +155,16 @@ class IndexedLogDB:
         c = self.time_idx.cursor()
         k = pack('d', t0)
         c.set_range(k)
+        c.prev();
         while True:
-            k ,p, l= c.pget(DB_CURRENT)
-            t, = unpack('d', k)
-            if t <= t1 :
-                yield t
-                c.next_nodup()
+            n = c.pget(DB_NEXT_NODUP)
+            if n != None :
+                k ,p, l = n 
+                t, = unpack('d', k)
+                if t <= t1 :
+                    yield t
+                else:
+                    raise StopIteration
             else:
                 raise StopIteration
 
@@ -129,10 +176,14 @@ class IndexedLogDB:
         c.set_range(k)
         c.prev()
         while True:
-            k, p, l = c.pget(DB_NEXT)
-            s, = unpack('i', k)
-            if s <= s1 :
-                yield IndexedLogDB.decodeKVP((p,l))
+            n = c.pget(DB_NEXT)
+            if n != None :
+                k, p, l = n
+                s, = unpack('i', k)
+                if s <= s1 :
+                    yield IndexedLogDB.decodeKVP((p,l))
+                else:
+                    raise StopIteration
             else:
                 raise StopIteration
 
@@ -143,11 +194,17 @@ class IndexedLogDB:
         k = pack('d', t0)
         c.set_range(k)
         c.prev()
+        # TODO: Factor out this iteration into another
+        # generator function
         while True:
-            k ,p, l= c.pget(DB_NEXT)
-            t, = unpack('d', k)
-            if t <= t1 :
-                yield IndexedLogDB.decodeKVP((p,l))
+            n = c.pget(DB_NEXT)
+            if n != None :
+                k ,p, l = n
+                t, = unpack('d', k)
+                if t <= t1 :
+                    yield IndexedLogDB.decodeKVP((p,l))
+                else:
+                    raise StopIteration
             else:
                 raise StopIteration
 
