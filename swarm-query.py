@@ -14,7 +14,7 @@ MAX_RECORDS = 10000;
 
 def parse_cmd():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-d", "--database", help="Database name (base name of the files that make up the database", required = True)
+    parser.add_argument("-d", "--database", help="Database filename", required = True)
     parser.add_argument("-m", "--max-records", help="maximum number of records to process", default=MAX_RECORDS, type=int )
     parser.add_argument("-s", "--system-range", help="Range of systems to display",type=RangeType(int),default=Range.universal());
     parser.add_argument("-t", "--time-range", help="Range of time to display", type=RangeType(float), default=Range.universal())
@@ -59,7 +59,7 @@ def makeQuery(tr, sr):
                 yield (k,l)
         else:
             for t in d.time_sequence(tr.ulPair()):
-                for k,l in d.system_range_query_at_time(t,sr.ulPair()):
+                for k,l in d.system_range_for_time_event(t,1,sr.ulPair()):
                     yield (k,l)
 
 def filterEventID(q,er):

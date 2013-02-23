@@ -6,23 +6,25 @@ import sys
 TIME_EPSILON = sys.float_info.epsilon
 
 class PKey:
-    def __init__(self, t, s, e , r):
+    def __init__(self, t, e, s):
         self.time = t
-        self.system_id = s
         self.event_id = e
-        self.recno = r
+        self.system_id = s
 
     @staticmethod
-    def decomposeBinary(s):
-        if(len(s) == 24):
-            return unpack('diiq',s)
+    def decomposeBinary(bin):
+        if(len(bin) == 8):
+            t, se = unpack('fI', bin)
+            s = se % 2**24
+            e = se / 2**24
+            return (t,e,s)
         else:
             return None
 
     @staticmethod
-    def fromBinary(s):
-        (t,s,e,r) = PKey.decomposeBinary(s)
-        return PKey(t,s,e,r)
+    def fromBinary(bin):
+        (t,e,s) = PKey.decomposeBinary(bin)
+        return PKey(t,e,s)
 
     @staticmethod
     def compareBinary(s1,s2):
@@ -40,7 +42,26 @@ class PKey:
        return m.__repr__();
 
     def toBinary(self):
-        return pack('diiq', self.time, self.system_id, self.event_id, self.recno )
+        return pack('fI', self.time, self.event_id * 2**24 + self.system_id)
+
+    @staticmethod
+    def packSys(s):
+        return pack('I',s)
+    @staticmethod
+    def packTime(t):
+        return pack('f',t)
+    @staticmethod
+    def packEvt(e):
+        return pack('B',s)
+    @staticmethod
+    def unpackSys(bin):
+        return unpack('I',bin)
+    @staticmethod
+    def unpackEvt(bin):
+        return unpack('B',bin)
+    @staticmethod
+    def unpackTime(bin):
+        return unpack('f',bin)
 
 
 
@@ -59,11 +80,11 @@ def compare_time(l, r):
         return -1
     if(len(l) > len(r)):
         return 1
-    elif(len(l) != 8):
+    elif(len(l) != 4):
         return 0
 
-    lf = unpack('d', l)
-    rf = unpack('d', r)
+    lf = PKey.unpackTime(l)
+    rf = PKey.unpackTime(r)
     if( lf < rf ):
         return -1
     if( lf > rf ):
@@ -72,7 +93,7 @@ def compare_time(l, r):
         return 0
 
 
-def compare_int(l, r):
+def compare_sys(l, r):
     if(len(l) < len(r)):
         return -1
     if(len(l) > len(r)):
@@ -80,8 +101,8 @@ def compare_int(l, r):
     elif(len(l) != 4):
         return 0
 
-    lf = unpack('i', l)
-    rf = unpack('i', r)
+    lf = PKey.unpackSys(l)
+    rf = PKey.unpackSys(r)
     if( lf < rf ):
         return -1
     if( lf > rf ):
@@ -89,6 +110,22 @@ def compare_int(l, r):
     else:
         return 0
 
+def compare_evt(l, r):
+    if(len(l) < len(r)):
+        return -1
+    if(len(l) > len(r)):
+        return 1
+    elif(len(l) != 1):
+        return 0
+
+    lf = PKey.unpackEvt(l)
+    rf = PKey.unpackEvt(r)
+    if( lf < rf ):
+        return -1
+    if( lf > rf ):
+        return 1
+    else:
+        return 0
 
 def iter_cursor(c, mode = DB_NEXT):
     while True:
@@ -96,6 +133,7 @@ def iter_cursor(c, mode = DB_NEXT):
         if n != None :
             yield n
         else:
+            c.close()
             raise StopIteration
 
 def iter_secondary_cursor(c, mode = DB_NEXT):
@@ -104,28 +142,36 @@ def iter_secondary_cursor(c, mode = DB_NEXT):
         if n != None :
             yield n
         else:
+            c.close()
             raise StopIteration
 
 class IndexedLogDB:
-    def __init__(self, baseName):
+    def __init__(self, fn):
+        """Opens a BDB file that contains the primary database and
+        secondary indices. fn is the path to the file"""
+
+        o = DB()
+        o.open(fn, flags=DB_RDONLY)
+        for k, d in iter_cursor(o.cursor()):
+            print "Database : ", k
         p = DB()
         p.set_bt_compare(PKey.compareBinary)
-        p.open(baseName + ".p.db", flags=DB_RDONLY)
+        p.open(fn, dbname="primary", flags=DB_RDONLY)
 
         si = DB()
-        si.set_bt_compare(compare_int)
+        si.set_bt_compare(compare_sys)
         si.set_dup_compare(PKey.compareBinary)
-        si.open(baseName + ".sys.db", flags=DB_RDONLY)
+        si.open(fn, dbname="system_idx", flags=DB_RDONLY)
 
         ti = DB()
         ti.set_bt_compare(compare_time)
         ti.set_dup_compare(PKey.compareBinary)
-        ti.open(baseName + ".time.db", flags=DB_RDONLY)
+        ti.open(fn, dbname="time_idx", flags=DB_RDONLY)
 
         ei = DB()
-        ei.set_bt_compare(compare_int)
+        ei.set_bt_compare(compare_evt)
         ei.set_dup_compare(PKey.compareBinary)
-        ei.open(baseName + ".evt.db", flags=DB_RDONLY)
+        ei.open(fn, dbname="event_idx", flags=DB_RDONLY)
 
         p.associate(si, extract_sys  )
         p.associate(ti, extract_time )
@@ -148,11 +194,11 @@ class IndexedLogDB:
 
         t0, t1 = time_range
         c = self.time_idx.cursor()
-        k = pack('d', t0)
+        k = PKey.packTime(t0)
         c.set_range(k)
         c.prev();
         for k, p, l in iter_secondary_cursor(c, DB_NEXT_NODUP):
-            t, = unpack('d', k)
+            t, = PKey.unpackTime(k)
             if t <= t1 :
                 yield t
             else:
@@ -162,11 +208,11 @@ class IndexedLogDB:
         """Return all the records that have system id in the system range"""
         s0, s1 = sys_range
         c = self.system_idx.cursor()
-        k = pack('i', s0)
+        k = PKey.packSys(s0)
         c.set_range(k)
         c.prev()
         for k, p, l in iter_secondary_cursor(c):
-            s, = unpack('i', k)
+            s, = PKey.unpackSys(k)
             if s <= s1 :
                 yield IndexedLogDB.decodeKVP((p,l))
             else:
@@ -176,11 +222,11 @@ class IndexedLogDB:
         """Return all the records that have time in the time range"""
         t0, t1 = time_range
         c = self.time_idx.cursor()
-        k = pack('d', t0)
+        k = PKey.packTime(t0)
         c.set_range(k)
         c.prev()
         for k, p, l in iter_secondary_cursor(c):
-            t, = unpack('d', k)
+            t, = PKey.unpackTime(k)
             if t <= t1 :
                 yield IndexedLogDB.decodeKVP((p,l))
             else:
@@ -192,18 +238,18 @@ class IndexedLogDB:
     def decodeKVP(r):
         return (PKey.fromBinary(r[0]),LogRecord.from_binary(r[1]))
 
-    def system_range_query_at_time(self,t,system_range):
+    def system_range_for_time_event(self,time,event_id,system_range):
         c = self.primary.cursor()
         s0, s1 = system_range
 
-        k = PKey(t, s0, 0, 0)
+        k = PKey(time, event_id, s0)
         c.set_range(k.toBinary())
-
-        while True:
-            k,l = IndexedLogDB.decodeKVP(c.current())
-            if k.system_id <= s1 :
+        # We have to check that we are at a valid location
+        c.prev()
+        for r in iter_cursor(c):
+            k,l = IndexedLogDB.decodeKVP(r)
+            if s0 <= k.system_id <= s1 and k.time == time and k.event_id == event_id:
                 yield (k,l)
-                c.next()
             else:
                 raise StopIteration
 
