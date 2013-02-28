@@ -3,16 +3,50 @@ from struct import *
 from collections import namedtuple
 from keplerian import calc_keplerian_for_cartesian
 
+
+def keplerian_for_cartesian(planet,center):
+    ((x,y,z),(vx,vy,vz),mass) = planet
+    ((cx,cy,cz),(cvx,cvy,cvz),cmass) = center
+    pv = ( (x-cx,y-cy,z-cz), (vx-cvx,vy-cvy,vz-cvz) )
+    m  = mass + cmass
+    return calc_keplerian_for_cartesian(pv,m)
+
+def center_of_mass(bodies):
+    cx = cy = cz = cvx = cvy = cvz = cmass = 0
+    for ((x,y,z),(vx,vy,vz),mass) in bodies:
+        cx += x; cy += y; cz += z;
+        cvx += vx; cvy += vy; cvz += vz;
+        cmass += mass
+
+    return ((cx/cmass,cy/cmass,cz/cmass),(cvx/cmass,cvy/cmass,cvz/cmass),cmass)
+
+def with_index(list,starting_index = 0):
+    return zip(range(starting_index,starting_index+len(list)),list)
+
 class LogRecord:
 
     Body = namedtuple('Body', ['position', 'velocity', 'mass'])
 
-    def bodies_in_keplerian(self):
-        bk = []
-        for b in self.bodies:
-            kc = calc_keplerian_for_cartesian((b.position, b.velocity),b.mass)
-            bk.append(kc)
-        return bk
+
+    def star(self):
+        return self.bodies[0]
+
+    def barycenter(self):
+        return center_of_mass(self.bodies)
+
+    def origin(self):
+        return LogRecord.Body((0,0,0),(0,0,0),self.bodies[0].mass)
+
+    def bodies_in_keplerian(self,center):
+        bs = with_index(self.bodies)
+        for i,b in bs[1:]:
+            yield i,b,keplerian_for_cartesian(b,center)
+
+    def bodies_in_keplerian_jacobi(self):
+        bs = with_index(self.bodies)
+        for i,b in bs[1:]:
+            center = center_of_mass(self.bodies[0:i])
+            yield i,b,keplerian_for_cartesian(b,center)
 
 
     @staticmethod
