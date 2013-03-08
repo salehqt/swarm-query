@@ -254,7 +254,38 @@ class IndexedLogDB:
                 raise StopIteration
 
 
+    def query(d , tr, sr, er ):
 
+        def filterEventID(q,er):
+            for k,l in q:
+                if(er.contains(k.event_id)):
+                    yield (k,l)    
+        
+        q0 = d.queryInternal(tr,sr)
+        
+        if(not er.isUniversal()):
+            q = filterEventID(q0,er)
+        else:
+            q = q0
+
+        return q
+
+    def queryInternal(d, tr, sr):
+        if(tr.isUniversal()):
+            if(sr.isUniversal()):
+                for k,l in d.all_records():
+                    yield (k,l)
+            else:
+                for k,l in d.system_range_records(sr.ulPair()):
+                    yield (k,l)
+        else:
+            if(sr.isUniversal()):
+                for k,l in d.time_range_records(tr.ulPair()):
+                    yield (k,l)
+            else:
+                for t in d.time_sequence(tr.ulPair()):
+                    for k,l in d.system_range_for_time_event(t,1,sr.ulPair()):
+                        yield (k,l)
 
 
 

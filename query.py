@@ -56,47 +56,21 @@ def print_record(print_mode, r, body_range):
         print print_mode, type(print_mode)
 
 
-def take(number,iterator):
+def truncate(number,iterator):
     for i in range(0,number):
         yield iterator.next()
 
 def run_with_args(args):
     d = IndexedLogDB(args.database)
     
-    def makeQuery(tr, sr):
-        if(tr.isUniversal()):
-            if(sr.isUniversal()):
-                for k,l in d.all_records():
-                    yield (k,l)
-            else:
-                for k,l in d.system_range_records(sr.ulPair()):
-                    yield (k,l)
-        else:
-            if(sr.isUniversal()):
-                for k,l in d.time_range_records(tr.ulPair()):
-                    yield (k,l)
-            else:
-                for t in d.time_sequence(tr.ulPair()):
-                    for k,l in d.system_range_for_time_event(t,1,sr.ulPair()):
-                        yield (k,l)
     
-    def filterEventID(q,er):
-        for k,l in q:
-            if(er.contains(k.event_id)):
-                yield (k,l)    
-    
-    q0 = makeQuery(args.time_range,args.system_range)
-    
-    if(not args.evt_id.isUniversal()):
-        q = filterEventID(q0,args.evt_id)
-    else:
-        q = q0
+    q = d.query(args.time_range,args.system_range,args.evt_id)
     
     if args.keplerian != None:
         print_mode  = Keplerian(args.keplerian)
     else:
         print_mode  = TABLE
     
-    for r in take(args.max_records,q):
+    for r in truncate(args.max_records,q):
         print_record(print_mode,r, args.body_range)
 

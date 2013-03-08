@@ -1,47 +1,34 @@
 # -*- coding: utf-8 *-*
 from logdb import IndexedLogDB
-from bsddb3.db import *
 from log import LogRecord
-from numpy import *
+from query import *
 import matplotlib.pyplot as P
-from struct import pack, unpack
+from range_type import *
 
-MAX_RECORDS = 10000
+MAX_RECORDS = 1000000
 EPSILON = 1e-5
-
-def almost_equal(a,b):
-    return abs(a-b) < EPSILON
-
-def plot_a_file(fileName, time_start, time_end):
-    d = IndexedLogDB(fileName)
-
-    p1 = []
-    p2 = []
-
-    c = d.at_time(time_start)
-
-    rec_count = 0
-
-    for i in range(0,MAX_RECORDS):
-        l = c.next()
-        if(l == None):
-            break;
-        else:
-            if(time_start < l.time < time_end):
-                rec_count += 1
-                bb = l.bodies_in_keplerian()
-                p1.append(bb[1].a)
-                p2.append(bb[2].a)
-            else:
-                break
-    print("%i records processed" % rec_count)
-
-    P.scatter(p1,p2)
-    P.show()
+fileName = "/scratch/hpc/salehqt/hg/swarm-build/d23.db"
+time_range = Range.universal()
+system_range = Range.universal()
+event_range = Range.single(1)
 
 
-from sys import argv
-if(len(argv) < 4):
-    print("Usage plot.py baseDbName time_start time_end")
-else:
-    plot_a_file(argv[1], float(argv[2]), float(argv[3]))
+
+d = IndexedLogDB(fileName)
+q = d.query(time_range, system_range, event_range)
+
+p1 = []
+p2 = []
+
+
+for k, l in truncate(MAX_RECORDS,q):
+    bb = l.bodies_in_keplerian(center=l.star())
+    bodies = list(bb)
+
+    p1.append(bodies[0][2].a)
+    p2.append(bodies[0][2].e)
+
+P.scatter(p1,p2)
+P.show()
+
+
