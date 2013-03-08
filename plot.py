@@ -5,30 +5,69 @@ from query import *
 import matplotlib.pyplot as P
 from range_type import *
 
+####### Parameters for the plotting algorithm ##########
+# Upper bound on number of records to read from log
 MAX_RECORDS = 1000000
-EPSILON = 1e-5
+# Name of the file to read the log records from
 fileName = "/scratch/hpc/salehqt/hg/swarm-build/d23.db"
+# Range of times to accept in the query, universal accepts all times
 time_range = Range.universal()
-system_range = Range.universal()
+# Range of systems to include in the query
+system_range = Range.universal() # single(0)
+# Types of events to include in the results
 event_range = Range.single(1)
+# Bodies to record parameters for, only use interval or single
+body_range = Range.interval((1,2))
 
+######  Execution Starts here ########################
 
-
+# Open the input log file
 d = IndexedLogDB(fileName)
+# Execute a query on the log, the result is a Python iterable
 q = d.query(time_range, system_range, event_range)
 
-p1 = []
-p2 = []
+
+# Set up some lists to hold our numbers for later
+body_parameters = {}
+for i in body_range:
+    body_parameters[i] = []
+times = []
 
 
+# Main loop of processing the records, we use the 
+# truncate function to select only the first MAX_RECORDS entries
+# from q. The ones that are selected are return in (k, l) tuples
+# k is the primary key for the record, l is a logrecord object.
+# for most processings we only need l
 for k, l in truncate(MAX_RECORDS,q):
-    bb = l.bodies_in_keplerian(center=l.star())
-    bodies = list(bb)
 
-    p1.append(bodies[0][2].a)
-    p2.append(bodies[0][2].e)
+    # Record time of the record for X-axis
+    times.append(l.time)
 
-P.scatter(p1,p2)
+    # Convert logrecord to keplerian coordinates, the method 
+    # bodies_in_keplerian
+    # converts the bodies one-by-one. The coordinates are calculated with
+    # respect to a center. The possible options are l.star(), l.barycenter()
+    # and l.origin()
+    # The results can be used in a for loop. This returns triplets as
+    #  - Ordinal number of the planet (first planet has number 1)
+    #  - Cartesian coordinates of the planet as an object that has properties
+    #  position, velocity and mass
+    #  - Keplerian coordinates of the planet as an object with properties
+    #  a, e, i, O, w, M
+    for i, b, orbit in l.bodies_in_keplerian(center=l.star()):
+        # lets record major axis of the orbit of the planet in
+        # our list
+        body_parameters[i].append(orbit.e)
+
+####### Plotting ##############3
+
+# Once all the numbers are gathered in lists we can
+# plot them using matplotlib functions
+
+#P.scatter(body_parameters[1],body_parameters[2]);
+for i in body_range:
+    P.scatter(times,body_parameters[i])
 P.show()
 
 

@@ -37,6 +37,20 @@ class Range:
         elif(self.type == UNIVERSAL):
             return True
 
+    def with_limits(self,lower,upper):
+        if(self.type == SINGLE):
+            if(lower <= self.single <= upper):
+                yield self.singleton
+        elif(self.type == INTERVAL):
+            a,b = self.interval
+            for i in range(max(a,lower),min(upper,b)+1):
+                yield i
+        else:
+            for i in range(lower,upper+1):
+                yield i
+
+
+
     def __iter__(self):
         if(self.type == SINGLE):
             yield self.singleton

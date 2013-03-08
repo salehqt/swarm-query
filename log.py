@@ -38,6 +38,18 @@ class LogRecord:
         return LogRecord.Body((0,0,0),(0,0,0),self.bodies[0].mass)
 
     def bodies_in_keplerian(self,center):
+        """
+        Convert logrecord to keplerian coordinates, this method
+        converts the bodies one-by-one. The coordinates are calculated with
+        respect to a center. The possible options for a center  are 
+        l.star(), l.barycenter() and l.origin()
+        The results can be used in a for loop. This returns triplets as
+         - Ordinal number of the planet (first planet has number 1)
+         - Cartesian coordinates of the planet as an object that has properties
+         position, velocity and mass
+         - Keplerian coordinates of the planet as an object with properties
+         a, e, i, O, w, M
+        """
         bs = with_index(self.bodies)
         for i,b in bs[1:]:
             yield i,b,keplerian_for_cartesian(b,center)
