@@ -64,7 +64,14 @@ def run_with_args(args):
     d = IndexedLogDB(args.database)
     
     
-    q = d.query(args.time_range,args.system_range,args.evt_id)
+    if args.initial_conditions :
+        s0, s1 = args.system_range.ulPair()
+        q = d.initial_conditions(s0)
+    elif args.final_conditions :
+        s0, s1 = args.system_range.ulPair()
+        q = d.final_conditions(s0)
+    else:
+        q = d.query(args.time_range,args.system_range,args.evt_id)
     
     if args.keplerian != None:
         print_mode  = Keplerian(args.keplerian)

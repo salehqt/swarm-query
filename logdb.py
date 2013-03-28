@@ -38,7 +38,7 @@ class PKey:
             return 1
 
     def __repr__(self):
-       m = {'time':self.time, 'sys': self.system_id, 'evt': self.event_id, 'rec#': self.recno }
+       m = {'time':self.time, 'sys': self.system_id, 'evt': self.event_id  }
        return m.__repr__();
 
     def toBinary(self):
@@ -231,6 +231,54 @@ class IndexedLogDB:
                 yield IndexedLogDB.decodeKVP((p,l))
             else:
                 raise StopIteration
+
+    def system_at_time(self, sysid, time_range):
+        """ This does not work because we are ignoring event_ids, we should
+        just use the other system_range_at_time instead"""
+        t0, t1 = time_range
+        c = self.system_idx.cursor()
+        k = PKey.packSys(sysid)
+        pk = PKey(t0, 0, 0).toBinary()
+        _, pk, _ = c.pget(k, pk, DB_GET_BOTH_RANGE)
+        print "Starting at " , PKey.fromBinary(pk)
+        c.prev()
+        for k, pk, l in iter_secondary_cursor(c):
+            kk = PKey.fromBinary(pk)
+            if t0 <= kk.time <= t1 and kk.system_id == sysid :
+                yield IndexedLogDB.decodeKVP((pk,l))
+            else:
+                raise StopIteration
+
+    def initial_conditions(self, sysid):
+        """Return initial coniditions for the specified system ID"""
+        c = self.system_idx.cursor()
+        k = PKey.packSys(sysid)
+        c.set_range(k)
+        _, k, _ = c.pget(DB_CURRENT)
+        kk = PKey.fromBinary(k)
+        c.close()
+        if kk.system_id == sysid :
+            initial_time = kk.time
+            return self.system_at_time(sysid, (initial_time,initial_time))
+        else:
+            return []
+
+    def final_conditions(self,sysid):
+        """Return the final conditions for specified system ID, that
+        is the largest time for which the system has a valid entry"""
+        c = self.system_idx.cursor()
+        k = PKey.packSys(sysid+1)
+        c.set_range(k)
+        c.prev()
+        _, k, _ = c.pget(DB_CURRENT)
+        kk = PKey.fromBinary(k)
+        print kk, sysid
+        c.close()
+        if kk.system_id == sysid :
+            final_time = kk.time
+            return self.system_at_time(sysid, (final_time,final_time))
+        else:
+            return []
 
 
 
