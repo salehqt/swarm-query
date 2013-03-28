@@ -233,12 +233,12 @@ class IndexedLogDB:
                 raise StopIteration
 
     def system_at_time(self, sysid, time_range):
-        """ This does not work because we are ignoring event_ids, we should
-        just use the other system_range_at_time instead"""
+        """ Apparently, DB_GET_BOTH_RANGE does not work as expected, we cannot do this"""
         t0, t1 = time_range
         c = self.system_idx.cursor()
         k = PKey.packSys(sysid)
-        pk = PKey(t0, 0, 0).toBinary()
+        print sysid, " ", t0
+        pk = PKey(t0, 1, sysid).toBinary()
         _, pk, _ = c.pget(k, pk, DB_GET_BOTH_RANGE)
         print "Starting at " , PKey.fromBinary(pk)
         c.prev()
@@ -259,7 +259,8 @@ class IndexedLogDB:
         c.close()
         if kk.system_id == sysid :
             initial_time = kk.time
-            return self.system_at_time(sysid, (initial_time,initial_time))
+            evt_id = kk.event_id
+            return self.system_range_for_time_event(initial_time, evt_id, (sysid,sysid))
         else:
             return []
 
@@ -272,11 +273,11 @@ class IndexedLogDB:
         c.prev()
         _, k, _ = c.pget(DB_CURRENT)
         kk = PKey.fromBinary(k)
-        print kk, sysid
         c.close()
         if kk.system_id == sysid :
             final_time = kk.time
-            return self.system_at_time(sysid, (final_time,final_time))
+            evt_id = kk.event_id
+            return self.system_range_for_time_event(final_time, evt_id, (sysid,sysid))
         else:
             return []
 

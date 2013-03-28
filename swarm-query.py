@@ -15,6 +15,8 @@ def parse_cmd():
     parser.add_argument("-b", "--body-range", help="Range of bodies to display", type=RangeType(int), default=Range.universal())
     parser.add_argument("-e", "--evt-id", help="The type of event to display (provide codes)",type=RangeType(int), default=Range.universal());
     parser.add_argument("-k", "--keplerian", help="Keplerian output. The argument defines the type of coordinate system used", choices = Keplerian.choices)
+    parser.add_argument("--initial-conditions",  action="store_true",default=False)
+    parser.add_argument("--final-conditions", action="store_true", default=False)
 
     args = parser.parse_args()
     return args
