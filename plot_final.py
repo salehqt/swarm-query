@@ -1,13 +1,14 @@
 # -*- coding: utf-8 *-*
+
+#
+#
+#
+
 from logdb import IndexedLogDB
 from log import LogRecord
 from query import *
 import matplotlib.pyplot as P
 from range_type import *
-from numpy import *
-
-import matplotlib as mpl
-#mpl.rcParams['backend'] = 'pdf'
 
 ####### Parameters for the plotting algorithm ##########
 # Upper bound on number of records to read from log
@@ -17,16 +18,37 @@ fileName = "/scratch/hpc/salehqt/kepler37ecc/kep37_log.db"
 # Range of times to accept in the query, universal accepts all times
 time_range = Range.interval((0.0,100.0))
 # Range of systems to include in the query
-system_range = Range.universal() # single(0)
+system_range = Range.universal() #interval((0,100))
 # Types of events to include in the results
 event_range = Range.single(1)
 # Bodies to record parameters for, only use interval or single
 body_range = Range.interval((1,2))
-
+from math import pi
 ######  Execution Starts here ########################
 
 # Open the input log file
 d = IndexedLogDB(fileName)
+
+
+### Step1: find out how long every system lasted
+def get_final_times():
+    final_time = {}
+#    for i in system_range :
+#        for k, l in d.final_conditions(i):
+    for i, l in d.final_conditions(system_range):
+            final_time[i] = l.time/(2*pi)
+    return final_time
+
+def plot_final_times_vs_systemid(final_time):
+    P.scatter(final_time.keys(),final_time.values())
+    P.axis([system_range.lower(), system_range.upper(), 10, max(final_time.values()) ])
+    P.gca().set_yscale('log',basey=10)
+    P.savefig("figure_final_time")
+
+
+print get_final_times()
+
+exit(1)
 # Execute a query on the log, the result is a Python iterable
 q = d.query(time_range, system_range, event_range)
 

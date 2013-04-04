@@ -62,36 +62,22 @@ def truncate(number,iterator):
 
 def run_with_args(args):
     d = IndexedLogDB(args.database)
-    
-    
-    def output_records(q):
-      if args.keplerian != None:
-	  print_mode  = Keplerian(args.keplerian)
-      else:
-	  print_mode  = TABLE
 
-      for r in truncate(args.max_records,q):
-	  print_record(print_mode,r, args.body_range)
+    if args.keplerian != None:
+      print_mode  = Keplerian(args.keplerian)
+    else:
+      print_mode  = TABLE
+
 
     if args.initial_conditions :
-	if args.system_range.isUniversal():
-	  raise "Must specify a system range"
-        else:
-	  s0, s1 = args.system_range.ulPair()
-	  for s in range(s0,s1+1):
-	    q = d.initial_conditions(s)
-	    output_records(q)
+      q = d.initial_conditions(args.system_range)
     elif args.final_conditions :
-	if args.system_range.isUniversal():
-	  raise "Must specify a system range"
-        else:
-	  s0, s1 = args.system_range.ulPair()
-	  for s in range(s0,s1+1):
-	    q = d.final_conditions(s)
-	    output_records(q)
+      q = d.final_conditions(args.system_range)
     else:
-        q = d.query(args.time_range,args.system_range,args.evt_id)
-        output_records(q)
+      q = d.query(args.time_range,args.system_range,args.evt_id)
+
+    for r in truncate(args.max_records,q):
+      print_record(print_mode,r, args.body_range)
     
     
 

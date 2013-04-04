@@ -55,13 +55,13 @@ class PKey:
         return pack('B',s)
     @staticmethod
     def unpackSys(bin):
-        return unpack('I',bin)
+        return unpack('I',bin)[0]
     @staticmethod
     def unpackEvt(bin):
-        return unpack('B',bin)
+        return unpack('B',bin)[0]
     @staticmethod
     def unpackTime(bin):
-        return unpack('f',bin)
+        return unpack('f',bin)[0]
 
 
 
@@ -198,7 +198,7 @@ class IndexedLogDB:
         c.set_range(k)
         c.prev();
         for k, p, l in iter_secondary_cursor(c, DB_NEXT_NODUP):
-            t, = PKey.unpackTime(k)
+            t = PKey.unpackTime(k)
             if t <= t1 :
                 yield t
             else:
@@ -212,7 +212,7 @@ class IndexedLogDB:
         c.set_range(k)
         c.prev()
         for k, p, l in iter_secondary_cursor(c):
-            s, = PKey.unpackSys(k)
+            s = PKey.unpackSys(k)
             if s <= s1 :
                 yield IndexedLogDB.decodeKVP((p,l))
             else:
@@ -226,7 +226,7 @@ class IndexedLogDB:
         c.set_range(k)
         c.prev()
         for k, p, l in iter_secondary_cursor(c):
-            t, = PKey.unpackTime(k)
+            t = PKey.unpackTime(k)
             if t <= t1 :
                 yield IndexedLogDB.decodeKVP((p,l))
             else:
@@ -249,37 +249,57 @@ class IndexedLogDB:
             else:
                 raise StopIteration
 
-    def initial_conditions(self, sysid):
-        """Return initial coniditions for the specified system ID"""
+    def initial_conditions(self, system_range):
+        """Return initial coniditions for the system range"""
         c = self.system_idx.cursor()
-        k = PKey.packSys(sysid)
-        c.set_range(k)
-        _, k, _ = c.pget(DB_CURRENT)
-        kk = PKey.fromBinary(k)
-        c.close()
-        if kk.system_id == sysid :
-            initial_time = kk.time
-            evt_id = kk.event_id
-            return self.system_range_for_time_event(initial_time, evt_id, (sysid,sysid))
-        else:
-            return []
 
-    def final_conditions(self,sysid):
-        """Return the final conditions for specified system ID, that
-        is the largest time for which the system has a valid entry"""
-        c = self.system_idx.cursor()
-        k = PKey.packSys(sysid+1)
-        c.set_range(k)
-        c.prev()
-        _, k, _ = c.pget(DB_CURRENT)
-        kk = PKey.fromBinary(k)
-        c.close()
-        if kk.system_id == sysid :
-            final_time = kk.time
-            evt_id = kk.event_id
-            return self.system_range_for_time_event(final_time, evt_id, (sysid,sysid))
+        if system_range.isUniversal() :
+            s0 = 0
+            s1 = sys.maxint
+            c.first()
         else:
-            return []
+            s0, s1 = system_range.ulPair()
+            k = PKey.packSys(s0)
+            c.set_range(k) 
+
+        sysid = s0
+        while sysid < s1 :
+            r = c.get(DB_NEXT_NODUP)
+            if r : 
+                ks, l = r
+                sysid = PKey.unpackSys(ks)
+                print sysid
+                yield sysid, LogRecord.from_binary(l)
+            else:
+                break
+
+    def final_conditions(self,system_range):
+        """Return the final conditions for a range of systems that
+        is the largest time for which the system has a valid entry
+        right now we don't support going through all systems
+        but that should not be difficult to add
+        """
+        c = self.system_idx.cursor()
+
+        if system_range.isUniversal() :
+            s0 = 0
+            s1 = sys.maxint
+            c.first()
+        else:
+            s0, s1 = system_range.ulPair()
+            k = PKey.packSys(s0)
+            c.set_range(k) 
+
+        sysid = s0-1
+        while sysid < s1  and  c.next() != None :
+            if c.get(DB_NEXT_NODUP) == None :
+                ks, l = c.last()
+            else:
+                ks, l = c.prev()
+                
+            sysid = PKey.unpackSys(ks)
+            print sysid
+            yield sysid, LogRecord.from_binary(l)
 
 
 
