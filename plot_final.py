@@ -46,7 +46,8 @@ def plot_final_times_vs_systemid(final_time):
     P.savefig("figure_final_time")
 
 
-print get_final_times()
+final_time = get_final_times()
+plot_final_times_vs_systemid(final_time)
 
 exit(1)
 # Execute a query on the log, the result is a Python iterable

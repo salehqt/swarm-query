@@ -237,10 +237,8 @@ class IndexedLogDB:
         t0, t1 = time_range
         c = self.system_idx.cursor()
         k = PKey.packSys(sysid)
-        print sysid, " ", t0
         pk = PKey(t0, 1, sysid).toBinary()
         _, pk, _ = c.pget(k, pk, DB_GET_BOTH_RANGE)
-        print "Starting at " , PKey.fromBinary(pk)
         c.prev()
         for k, pk, l in iter_secondary_cursor(c):
             kk = PKey.fromBinary(pk)
@@ -268,7 +266,6 @@ class IndexedLogDB:
             if r : 
                 ks, l = r
                 sysid = PKey.unpackSys(ks)
-                print sysid
                 yield sysid, LogRecord.from_binary(l)
             else:
                 break
@@ -298,7 +295,6 @@ class IndexedLogDB:
                 ks, l = c.prev()
                 
             sysid = PKey.unpackSys(ks)
-            print sysid
             yield sysid, LogRecord.from_binary(l)
 
 
